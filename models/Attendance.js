@@ -1,21 +1,28 @@
+// backend/models/Attendance.js
 import mongoose from "mongoose";
 
-const attendanceRecordSchema = new mongoose.Schema(
+const AttendanceRecordSchema = new mongoose.Schema(
   {
-    date: { type: String, required: true },
-    hostelId: { type: String, required: true },
-    records: [
-      {
-        studentId: { type: String, required: true },
-        roomId: { type: String, required: true },
-        status: { type: String, enum: ["Present", "Absent"], required: true }
-      }
-    ]
+    studentId: { type: String, required: true },
+    roomId: { type: String, required: true },
+    status: {
+      type: String,
+      enum: ["Present", "Absent"],
+      required: true,
+    },
   },
-  { timestamps: true }
+  { _id: false }
 );
 
-export const AttendanceModel = mongoose.model(
-  "AttendanceRecord",
-  attendanceRecordSchema
+const AttendanceSchema = new mongoose.Schema(
+  {
+    date: { type: String, required: true }, // "2025-12-08"
+    hostelId: { type: String, required: true },
+    records: { type: [AttendanceRecordSchema], default: [] },
+  },
+  {
+    timestamps: true,
+  }
 );
+
+export const AttendanceModel = mongoose.model("Attendance", AttendanceSchema);
