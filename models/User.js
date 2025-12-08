@@ -1,19 +1,34 @@
+// backend/models/User.js
 import mongoose from "mongoose";
 
-const userSchema = new mongoose.Schema(
+const UserSchema = new mongoose.Schema(
   {
+    // College / system ID (eg: student1, admin1)
     id: { type: String, required: true, unique: true },
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
-    role: { type: String, enum: ["ADMIN", "STUDENT"], required: true },
-    gender: { type: String, enum: ["Male", "Female"], required: true },
+
+    role: {
+      type: String,
+      enum: ["ADMIN", "STUDENT"],
+      required: true,
+    },
+
+    gender: {
+      type: String,
+      enum: ["Male", "Female", ""],
+      default: "",
+    },
+
     assignedRoomId: { type: String, default: null },
     assignedBedId: { type: String, default: null },
+
     avatarUrl: { type: String, default: "" },
-    tags: { type: [String], default: [] }
+    tags: { type: [String], default: [] },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
-export const UserModel = mongoose.model("User", userSchema);
-
+export const UserModel = mongoose.model("User", UserSchema);
