@@ -1,14 +1,21 @@
+// backend/models/Broadcast.js
 import mongoose from "mongoose";
 
-const broadcastSchema = new mongoose.Schema(
+const BroadcastSchema = new mongoose.Schema(
   {
-    id: { type: String, required: true, unique: true },
+    id: { type: String, required: true, unique: true }, // broadcast_...
     message: { type: String, required: true },
-    priority: { type: String, default: "Normal" },
+    priority: {
+      type: String,
+      enum: ["Normal", "High"],
+      default: "Normal",
+    },
     sender: { type: String, default: "Admin" },
-    timestamp: { type: Number, required: true }
+    timestamp: { type: Number, required: true },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
-export const BroadcastModel = mongoose.model("Broadcast", broadcastSchema);
+export const BroadcastModel = mongoose.model("Broadcast", BroadcastSchema);
