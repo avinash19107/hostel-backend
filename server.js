@@ -69,6 +69,56 @@ app.get("/api/users", async (req, res) => {
   }
 });
 
+// 🔹 CREATE USER (ADMIN create ID → PERSIST)
+app.post("/api/users", async (req, res) => {
+  try {
+    const {
+      id,
+      name,
+      email,
+      role,
+      gender,
+      assignedRoomId,
+      assignedBedId,
+      avatarUrl,
+      tags,
+    } = req.body;
+
+    if (!id || !name || !email || !role) {
+      return res
+        .status(400)
+        .json({ message: "id, name, email and role are required" });
+    }
+
+    const existing = await UserModel.findOne({
+      $or: [{ id }, { email }],
+    });
+
+    if (existing) {
+      return res
+        .status(409)
+        .json({ message: "User with this ID or email already exists" });
+    }
+
+    const newUser = await UserModel.create({
+      id,
+      name,
+      email,
+      role,
+      gender: gender || "",
+      assignedRoomId: assignedRoomId || null,
+      assignedBedId: assignedBedId || null,
+      avatarUrl: avatarUrl || "",
+      tags: tags || [],
+    });
+
+    res.status(201).json(newUser);
+  } catch (err) {
+    console.error("Error creating user:", err);
+    res.status(500).json({ message: "Error creating user" });
+  }
+});
+
 // ---------- LOGIN ----------
 app.post("/api/login", async (req, res) => {
   try {
@@ -79,10 +129,7 @@ app.post("/api/login", async (req, res) => {
     }
 
     const user = await UserModel.findOne({
-      $or: [
-        { email: identifier },
-        { id: identifier }
-      ]
+      $or: [{ email: identifier }, { id: identifier }],
     }).lean();
 
     if (!user) {
@@ -123,18 +170,18 @@ app.post("/api/booking-requests", async (req, res) => {
 
     const hostel = HOSTELS.find((h) => h.id === room.hostelId);
     if (!isGenderAllowedInHostel(user, hostel)) {
-      return res
-        .status(400)
-        .json({ message: "This student's gender is not allowed in this hostel." });
+      return res.status(400).json({
+        message: "This student's gender is not allowed in this hostel.",
+      });
     }
 
     const newReq = await BookingRequestModel.create({
-      id: String(Date.now()),
+      id: `req_${Date.now()}`,
       roomId,
       bedId,
       studentId,
       studentName,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
 
     res.status(201).json(newReq);
@@ -169,7 +216,7 @@ app.post("/api/complaints", async (req, res) => {
       type,
       description,
       status: "Pending",
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
 
     res.status(201).json(newComplaint);
@@ -211,7 +258,8 @@ app.get("/api/gatepass", async (req, res) => {
 
 app.post("/api/gatepass", async (req, res) => {
   try {
-    const { studentId, studentName, departureDate, returnDate, reason } = req.body;
+    const { studentId, studentName, departureDate, returnDate, reason } =
+      req.body;
     if (!studentId || !studentName || !departureDate || !returnDate || !reason) {
       return res.status(400).json({ message: "Missing fields" });
     }
@@ -224,7 +272,7 @@ app.post("/api/gatepass", async (req, res) => {
       returnDate,
       reason,
       status: "Pending",
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
 
     res.status(201).json(newReq);
@@ -295,7 +343,7 @@ app.post("/api/broadcasts", async (req, res) => {
       message,
       priority: priority || "Normal",
       sender: sender || "Admin",
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
 
     res.status(201).json(newBroadcast);
@@ -326,7 +374,7 @@ app.post("/api/attendance", async (req, res) => {
     const newRecord = await AttendanceModel.create({
       date,
       hostelId,
-      records
+      records,
     });
 
     res.status(201).json(newRecord);
