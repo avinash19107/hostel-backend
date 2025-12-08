@@ -1,25 +1,24 @@
 // backend/db.js
 import mongoose from "mongoose";
+import dotenv from "dotenv";
+dotenv.config();
 
 export async function connectDB() {
   const uri = process.env.MONGODB_URI;
 
   if (!uri) {
-    console.error("❌ MONGODB_URI not set in .env");
+    console.error("❌ MONGODB_URI not found in environment variables");
     process.exit(1);
   }
 
   try {
     await mongoose.connect(uri, {
-      // These options help with some Windows + Atlas TLS issues
-      serverSelectionTimeoutMS: 10000,
-      tls: true,
-      tlsAllowInvalidCertificates: true, // ok for college project, not for banking apps 😄
+      dbName: "hostel_system",
     });
 
-    console.log("✅ Connected to MongoDB from server.js");
+    console.log("✅ Connected to MongoDB from db.js");
   } catch (err) {
-    console.error("❌ MongoDB connection failed in server.js:", err);
+    console.error("❌ MongoDB connection error:", err);
     process.exit(1);
   }
 }
