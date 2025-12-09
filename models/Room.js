@@ -1,46 +1,38 @@
 import mongoose from "mongoose";
-import { RoomStatus } from "../constants.js"; // or just hardcode enums
 
 const BedSchema = new mongoose.Schema(
   {
-    id: { type: String, required: true },      // e.g. "BH1-101-A"
-    label: { type: String, required: true },   // "A", "B", etc.
+    id: String,
+    label: String,
     status: {
       type: String,
-      enum: ["Available", "Occupied", "Maintenance", "Requested"],
+      enum: ["Available", "Requested", "Occupied", "Maintenance"],
       default: "Available",
     },
-    occupantId: { type: String, default: null }, // user.id
+    occupantId: { type: String, default: null },
   },
   { _id: false }
 );
 
 const RoomSchema = new mongoose.Schema(
   {
-    id: { type: String, required: true, unique: true }, // "BH1-101"
-    hostelId: { type: String, required: true },         // match HOSTELS ids
+    id: { type: String, required: true, unique: true },
+    hostelId: { type: String, required: true },
     floor: { type: Number, required: true },
-    number: { type: String, required: true },           // "101"
-
     capacity: { type: Number, required: true },
     price: { type: Number, required: true },
 
     status: {
       type: String,
-      enum: ["Available", "Occupied", "Maintenance"],
-      default: "Available",
+      enum: ["AVAILABLE", "OCCUPIED", "MAINTENANCE"],
+      default: "AVAILABLE",
     },
 
-    occupants: [String],        // list of user.id
+    occupants: [String],
     beds: [BedSchema],
-    features: [String],         // "AC", "Attached Bathroom", etc.
-
-    // optional: for grid positioning on floor map
-    gridX: Number,
-    gridY: Number,
+    features: [String],
   },
   { timestamps: true }
 );
 
-const Room = mongoose.model("Room", RoomSchema);
-export default Room;
+export const RoomModel = mongoose.model("Room", RoomSchema);
