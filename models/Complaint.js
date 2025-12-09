@@ -1,16 +1,25 @@
+// models/Complaint.js
 import mongoose from "mongoose";
 
-const complaintSchema = new mongoose.Schema(
+const ComplaintSchema = new mongoose.Schema(
   {
     id: { type: String, required: true, unique: true },
     studentId: { type: String, required: true },
     studentName: { type: String, required: true },
-    type: { type: String, required: true },
+
+    type: { type: String, required: true },     // "Electricity", "Water", etc.
     description: { type: String, required: true },
-    status: { type: String, default: "Pending" },
-    timestamp: { type: Number, required: true }
+
+    status: {
+      type: String,
+      enum: ["Pending", "In Progress", "Resolved"],
+      default: "Pending",
+    },
+
+    timestamp: { type: Number, required: true },
   },
   { timestamps: true }
 );
 
-export const ComplaintModel = mongoose.model("Complaint", complaintSchema);
+const Complaint = mongoose.model("Complaint", ComplaintSchema);
+export default Complaint;
