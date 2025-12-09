@@ -2,11 +2,12 @@ import mongoose from "mongoose";
 
 const BookingRequestSchema = new mongoose.Schema(
   {
+    id: { type: String, required: true, unique: true }, // req_17337...
     studentId: String,
     studentName: String,
     roomId: String,
     bedId: String,
-    timestamp: Number,
+    timestamp: Number
   },
   { timestamps: true }
 );
