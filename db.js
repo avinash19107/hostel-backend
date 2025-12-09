@@ -1,13 +1,13 @@
-// backend/db.js
 import mongoose from "mongoose";
 import dotenv from "dotenv";
+
 dotenv.config();
 
 export async function connectDB() {
   const uri = process.env.MONGODB_URI;
 
   if (!uri) {
-    console.error("❌ MONGODB_URI not found in environment variables");
+    console.error("❌ MONGODB_URI missing");
     process.exit(1);
   }
 
@@ -16,9 +16,9 @@ export async function connectDB() {
       dbName: "hostel_system",
     });
 
-    console.log("✅ Connected to MongoDB from db.js");
+    console.log("✅ MongoDB Connected");
   } catch (err) {
-    console.error("❌ MongoDB connection error:", err);
+    console.error("❌ MongoDB Error:", err);
     process.exit(1);
   }
 }
