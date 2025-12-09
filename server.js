@@ -31,7 +31,7 @@ app.get("/api/hostels", (req, res) => {
   res.json(HOSTELS);
 });
 
-// Helper: gender vs hostel type (HOSTELS still from data.js)
+// Helper: gender vs hostel type
 function isGenderAllowedInHostel(user, hostel) {
   if (!user || !hostel) return false;
   if (hostel.type === "Girls" && user.gender === "Male") return false;
@@ -69,7 +69,7 @@ app.get("/api/users", async (req, res) => {
   }
 });
 
-// 🔹 CREATE USER (ADMIN create ID → PERSIST)
+// CREATE USER (ADMIN create ID → PERSIST)
 app.post("/api/users", async (req, res) => {
   try {
     const {
@@ -103,7 +103,7 @@ app.post("/api/users", async (req, res) => {
     const newUser = await UserModel.create({
       id,
       name,
-      email,
+      email: email.toLowerCase(),
       role,
       gender: gender || "",
       assignedRoomId: assignedRoomId || null,
@@ -384,10 +384,34 @@ app.post("/api/attendance", async (req, res) => {
   }
 });
 
+// ---------- SEED ADMIN USER ----------
+async function seedInitialAdmin() {
+  const existingAdmin = await UserModel.findOne({ role: "ADMIN" });
+  if (existingAdmin) {
+    console.log("Admin already exists:", existingAdmin.email);
+    return;
+  }
+
+  const admin = await UserModel.create({
+    id: "admin",
+    name: "Hostel Admin",
+    email: "admin@hostel.com",
+    role: "ADMIN",
+    gender: "",
+    assignedRoomId: null,
+    assignedBedId: null,
+    avatarUrl: "",
+    tags: [],
+  });
+
+  console.log("Seeded default admin:", admin.email);
+}
+
 // ---------- START SERVER ----------
 const PORT = process.env.PORT || 5000;
 
 await connectDB();
+await seedInitialAdmin();
 
 app.listen(PORT, () => {
   console.log(`Backend API running on port ${PORT}`);
