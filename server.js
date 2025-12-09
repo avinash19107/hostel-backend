@@ -408,10 +408,41 @@ async function seedInitialAdmin() {
 }
 
 // ---------- START SERVER ----------
+
 const PORT = process.env.PORT || 5000;
+const DEFAULT_ADMIN_ID = process.env.DEFAULT_ADMIN_ID || "admin";
+const DEFAULT_ADMIN_EMAIL = process.env.DEFAULT_ADMIN_EMAIL || "admin@hostel.com";
+
+// Create a default admin if none exists
+async function ensureDefaultAdmin() {
+  try {
+    const existingAdmin = await UserModel.findOne({ role: "ADMIN" });
+
+    if (existingAdmin) {
+      console.log(`✅ Admin already exists: ${existingAdmin.email}`);
+      return;
+    }
+
+    const admin = await UserModel.create({
+      id: DEFAULT_ADMIN_ID,
+      name: "Hostel Admin",
+      email: DEFAULT_ADMIN_EMAIL,
+      role: "ADMIN",
+      gender: "",
+      assignedRoomId: null,
+      assignedBedId: null,
+      avatarUrl: "",
+      tags: [],
+    });
+
+    console.log("✅ Default admin created:", admin.email);
+  } catch (err) {
+    console.error("❌ Error ensuring default admin:", err);
+  }
+}
 
 await connectDB();
-await seedInitialAdmin();
+await ensureDefaultAdmin();
 
 app.listen(PORT, () => {
   console.log(`Backend API running on port ${PORT}`);
