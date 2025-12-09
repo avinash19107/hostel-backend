@@ -1,8 +1,9 @@
+// backend/models/User.js
 import mongoose from "mongoose";
 
 const UserSchema = new mongoose.Schema(
   {
-    id: { type: String, required: true, unique: true }, 
+    id: { type: String, required: true, unique: true },  // "student1", "admin"
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
 
@@ -12,11 +13,7 @@ const UserSchema = new mongoose.Schema(
       required: true,
     },
 
-    gender: {
-      type: String,
-      enum: ["Male", "Female", ""],
-      default: "",
-    },
+    gender: { type: String, default: "" }, // "Male", "Female", etc.
 
     assignedRoomId: { type: String, default: null },
     assignedBedId: { type: String, default: null },
@@ -24,7 +21,10 @@ const UserSchema = new mongoose.Schema(
     avatarUrl: { type: String, default: "" },
     tags: { type: [String], default: [] },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    strict: false,
+  }
 );
 
 export const UserModel = mongoose.model("User", UserSchema);
