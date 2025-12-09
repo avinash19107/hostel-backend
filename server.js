@@ -5,7 +5,7 @@ import dotenv from "dotenv";
 
 import { connectDB } from "./db.js";
 
-import { HOSTELS } from "./data.js"; // only hostels stay static
+import { HOSTELS } from "./data.js";
 
 import { UserModel } from "./models/User.js";
 import { RoomModel } from "./models/Room.js";
@@ -21,9 +21,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Health check
+// ---------- HEALTH CHECK ----------
 app.get("/", (req, res) => {
-  res.send("Hostel backend API is running with MongoDB");
+  res.send("Hostel backend API running with MongoDB");
 });
 
 // ---------- HOSTELS ----------
@@ -31,7 +31,7 @@ app.get("/api/hostels", (req, res) => {
   res.json(HOSTELS);
 });
 
-// Helper: gender vs hostel type
+// --------- HELPER ----------
 function isGenderAllowedInHostel(user, hostel) {
   if (!user || !hostel) return false;
   if (hostel.type === "Girls" && user.gender === "Male") return false;
@@ -43,6 +43,7 @@ function isGenderAllowedInHostel(user, hostel) {
 app.get("/api/rooms", async (req, res) => {
   try {
     const { hostelId, floor } = req.query;
+
     const filter = {};
     if (hostelId) filter.hostelId = hostelId;
     if (floor) filter.floor = Number(floor);
@@ -55,12 +56,33 @@ app.get("/api/rooms", async (req, res) => {
   }
 });
 
+// UPDATE ROOM (Needed for approve/reject booking)
+app.put("/api/rooms/:id", async (req, res) => {
+  try {
+    const updatedRoom = await RoomModel.findOneAndUpdate(
+      { id: req.params.id },
+      req.body,
+      { new: true }
+    ).lean();
+
+    if (!updatedRoom) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+
+    res.json(updatedRoom);
+  } catch (err) {
+    console.error("Error updating room:", err);
+    res.status(500).json({ message: "Error updating room" });
+  }
+});
+
 // ---------- USERS ----------
 app.get("/api/users", async (req, res) => {
   try {
     const { role } = req.query;
     const filter = {};
     if (role) filter.role = role;
+
     const users = await UserModel.find(filter).lean();
     res.json(users);
   } catch (err) {
@@ -69,47 +91,26 @@ app.get("/api/users", async (req, res) => {
   }
 });
 
-// CREATE USER (ADMIN create ID → PERSIST)
+// CREATE USER
 app.post("/api/users", async (req, res) => {
   try {
-    const {
-      id,
-      name,
-      email,
-      role,
-      gender,
-      assignedRoomId,
-      assignedBedId,
-      avatarUrl,
-      tags,
-    } = req.body;
+    const data = req.body;
 
-    if (!id || !name || !email || !role) {
-      return res
-        .status(400)
-        .json({ message: "id, name, email and role are required" });
+    if (!data.id || !data.name || !data.email || !data.role) {
+      return res.status(400).json({ message: "id, name, email, role required" });
     }
 
-    const existing = await UserModel.findOne({
-      $or: [{ id }, { email }],
+    const exists = await UserModel.findOne({
+      $or: [{ id: data.id }, { email: data.email }],
     });
 
-    if (existing) {
-      return res
-        .status(409)
-        .json({ message: "User with this ID or email already exists" });
+    if (exists) {
+      return res.status(409).json({ message: "User already exists" });
     }
 
     const newUser = await UserModel.create({
-      id,
-      name,
-      email: email.toLowerCase(),
-      role,
-      gender: gender || "",
-      assignedRoomId: assignedRoomId || null,
-      assignedBedId: assignedBedId || null,
-      avatarUrl: avatarUrl || "",
-      tags: tags || [],
+      ...data,
+      email: data.email.toLowerCase(),
     });
 
     res.status(201).json(newUser);
@@ -119,27 +120,41 @@ app.post("/api/users", async (req, res) => {
   }
 });
 
+// UPDATE USER (Needed for approving booking)
+app.put("/api/users/:id", async (req, res) => {
+  try {
+    const updatedUser = await UserModel.findOneAndUpdate(
+      { id: req.params.id },
+      req.body,
+      { new: true }
+    ).lean();
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json(updatedUser);
+  } catch (err) {
+    console.error("Error updating user:", err);
+    res.status(500).json({ message: "Error updating user" });
+  }
+});
+
 // ---------- LOGIN ----------
 app.post("/api/login", async (req, res) => {
   try {
-    const { email } = req.body;
-    const identifier = (email || "").trim().toLowerCase();
-    if (!identifier) {
-      return res.status(400).json({ message: "Email or ID is required" });
-    }
+    const identifier = (req.body.email || "").trim().toLowerCase();
 
     const user = await UserModel.findOne({
       $or: [{ email: identifier }, { id: identifier }],
     }).lean();
 
-    if (!user) {
-      return res.status(401).json({ message: "User not found" });
-    }
+    if (!user) return res.status(401).json({ message: "User not found" });
 
     res.json(user);
   } catch (err) {
-    console.error("Error in login:", err);
-    res.status(500).json({ message: "Internal server error" });
+    console.error("Login error:", err);
+    res.status(500).json({ message: "Internal error" });
   }
 });
 
@@ -149,7 +164,7 @@ app.get("/api/booking-requests", async (req, res) => {
     const list = await BookingRequestModel.find().lean();
     res.json(list);
   } catch (err) {
-    console.error("Error fetching booking requests:", err);
+    console.error("Error fetching:", err);
     res.status(500).json({ message: "Error fetching booking requests" });
   }
 });
@@ -157,25 +172,20 @@ app.get("/api/booking-requests", async (req, res) => {
 app.post("/api/booking-requests", async (req, res) => {
   try {
     const { roomId, bedId, studentId, studentName } = req.body;
-    if (!roomId || !bedId || !studentId || !studentName) {
-      return res.status(400).json({ message: "Missing fields" });
-    }
 
     const room = await RoomModel.findOne({ id: roomId }).lean();
     const user = await UserModel.findOne({ id: studentId }).lean();
 
     if (!room || !user) {
-      return res.status(400).json({ message: "Invalid room or user" });
+      return res.status(400).json({ message: "Invalid user or room" });
     }
 
     const hostel = HOSTELS.find((h) => h.id === room.hostelId);
     if (!isGenderAllowedInHostel(user, hostel)) {
-      return res.status(400).json({
-        message: "This student's gender is not allowed in this hostel.",
-      });
+      return res.status(400).json({ message: "Gender not allowed" });
     }
 
-    const newReq = await BookingRequestModel.create({
+    const created = await BookingRequestModel.create({
       id: `req_${Date.now()}`,
       roomId,
       bedId,
@@ -184,266 +194,125 @@ app.post("/api/booking-requests", async (req, res) => {
       timestamp: Date.now(),
     });
 
-    res.status(201).json(newReq);
+    res.status(201).json(created);
   } catch (err) {
-    console.error("Error creating booking request:", err);
-    res.status(500).json({ message: "Error creating booking request" });
+    console.error("Error creating booking:", err);
+    res.status(500).json({ message: "Error creating booking" });
+  }
+});
+
+// DELETE BOOKING REQUEST
+app.delete("/api/booking-requests/:id", async (req, res) => {
+  try {
+    const result = await BookingRequestModel.findOneAndDelete({
+      id: req.params.id,
+    });
+
+    if (!result) {
+      return res.status(404).json({ message: "Request not found" });
+    }
+
+    res.json({ message: "Request deleted" });
+  } catch (err) {
+    console.error("Delete error:", err);
+    res.status(500).json({ message: "Error deleting request" });
   }
 });
 
 // ---------- COMPLAINTS ----------
 app.get("/api/complaints", async (req, res) => {
   try {
-    const list = await ComplaintModel.find().lean();
-    res.json(list);
-  } catch (err) {
-    console.error("Error fetching complaints:", err);
+    res.json(await ComplaintModel.find().lean());
+  } catch {
     res.status(500).json({ message: "Error fetching complaints" });
   }
 });
 
 app.post("/api/complaints", async (req, res) => {
   try {
-    const { studentId, studentName, type, description } = req.body;
-    if (!studentId || !studentName || !type || !description) {
-      return res.status(400).json({ message: "Missing fields" });
-    }
-
     const newComplaint = await ComplaintModel.create({
       id: `cmp_${Date.now()}`,
-      studentId,
-      studentName,
-      type,
-      description,
+      ...req.body,
       status: "Pending",
       timestamp: Date.now(),
     });
 
     res.status(201).json(newComplaint);
-  } catch (err) {
-    console.error("Error creating complaint:", err);
+  } catch {
     res.status(500).json({ message: "Error creating complaint" });
   }
 });
 
-app.put("/api/complaints/:id/resolve", async (req, res) => {
-  try {
-    const complaint = await ComplaintModel.findOneAndUpdate(
-      { id: req.params.id },
-      { status: "Resolved" },
-      { new: true }
-    ).lean();
-
-    if (!complaint) {
-      return res.status(404).json({ message: "Complaint not found" });
-    }
-
-    res.json(complaint);
-  } catch (err) {
-    console.error("Error resolving complaint:", err);
-    res.status(500).json({ message: "Error resolving complaint" });
-  }
-});
-
 // ---------- GATE PASS ----------
-app.get("/api/gatepass", async (req, res) => {
-  try {
-    const list = await GatePassModel.find().lean();
-    res.json(list);
-  } catch (err) {
-    console.error("Error fetching gatepass:", err);
-    res.status(500).json({ message: "Error fetching gatepass" });
-  }
-});
+app.get("/api/gatepass", async (req, res) =>
+  res.json(await GatePassModel.find().lean())
+);
 
 app.post("/api/gatepass", async (req, res) => {
   try {
-    const { studentId, studentName, departureDate, returnDate, reason } =
-      req.body;
-    if (!studentId || !studentName || !departureDate || !returnDate || !reason) {
-      return res.status(400).json({ message: "Missing fields" });
-    }
-
-    const newReq = await GatePassModel.create({
+    const reqItem = await GatePassModel.create({
       id: `gp_${Date.now()}`,
-      studentId,
-      studentName,
-      departureDate,
-      returnDate,
-      reason,
+      ...req.body,
       status: "Pending",
       timestamp: Date.now(),
     });
 
-    res.status(201).json(newReq);
-  } catch (err) {
-    console.error("Error creating gatepass:", err);
+    res.status(201).json(reqItem);
+  } catch {
     res.status(500).json({ message: "Error creating gatepass" });
   }
 });
 
 app.post("/api/gatepass/:id/approve", async (req, res) => {
-  try {
-    const reqItem = await GatePassModel.findOneAndUpdate(
-      { id: req.params.id },
-      { status: "Approved" },
-      { new: true }
-    ).lean();
-
-    if (!reqItem) {
-      return res.status(404).json({ message: "Request not found" });
-    }
-
-    res.json(reqItem);
-  } catch (err) {
-    console.error("Error approving gatepass:", err);
-    res.status(500).json({ message: "Error approving gatepass" });
-  }
+  const updated = await GatePassModel.findOneAndUpdate(
+    { id: req.params.id },
+    { status: "Approved" },
+    { new: true }
+  );
+  if (!updated) return res.status(404).json({ message: "Not found" });
+  res.json(updated);
 });
 
-app.post("/api/gatepass/:id/reject", async (req, res) => {
-  try {
-    const reqItem = await GatePassModel.findOneAndUpdate(
-      { id: req.params.id },
-      { status: "Rejected" },
-      { new: true }
-    ).lean();
-
-    if (!reqItem) {
-      return res.status(404).json({ message: "Request not found" });
-    }
-
-    res.json(reqItem);
-  } catch (err) {
-    console.error("Error rejecting gatepass:", err);
-    res.status(500).json({ message: "Error rejecting gatepass" });
-  }
-});
-
-// ---------- BROADCASTS ----------
-app.get("/api/broadcasts", async (req, res) => {
-  try {
-    const list = await BroadcastModel.find().sort({ timestamp: -1 }).lean();
-    res.json(list);
-  } catch (err) {
-    console.error("Error fetching broadcasts:", err);
-    res.status(500).json({ message: "Error fetching broadcasts" });
-  }
-});
+// ---------- BROADCAST ----------
+app.get("/api/broadcasts", async (req, res) =>
+  res.json(await BroadcastModel.find().sort({ timestamp: -1 }).lean())
+);
 
 app.post("/api/broadcasts", async (req, res) => {
-  try {
-    const { message, priority, sender } = req.body;
-    if (!message) {
-      return res.status(400).json({ message: "Message is required" });
-    }
-
-    const newBroadcast = await BroadcastModel.create({
-      id: `broadcast_${Date.now()}`,
-      message,
-      priority: priority || "Normal",
-      sender: sender || "Admin",
-      timestamp: Date.now(),
-    });
-
-    res.status(201).json(newBroadcast);
-  } catch (err) {
-    console.error("Error creating broadcast:", err);
-    res.status(500).json({ message: "Error creating broadcast" });
-  }
+  const saved = await BroadcastModel.create({
+    id: `broadcast_${Date.now()}`,
+    timestamp: Date.now(),
+    ...req.body,
+  });
+  res.status(201).json(saved);
 });
 
 // ---------- ATTENDANCE ----------
-app.get("/api/attendance", async (req, res) => {
-  try {
-    const list = await AttendanceModel.find().lean();
-    res.json(list);
-  } catch (err) {
-    console.error("Error fetching attendance:", err);
-    res.status(500).json({ message: "Error fetching attendance" });
-  }
-});
+app.get("/api/attendance", async (req, res) =>
+  res.json(await AttendanceModel.find().lean())
+);
 
 app.post("/api/attendance", async (req, res) => {
-  try {
-    const { date, hostelId, records } = req.body;
-    if (!date || !hostelId || !Array.isArray(records)) {
-      return res.status(400).json({ message: "Missing fields" });
-    }
-
-    const newRecord = await AttendanceModel.create({
-      date,
-      hostelId,
-      records,
-    });
-
-    res.status(201).json(newRecord);
-  } catch (err) {
-    console.error("Error creating attendance record:", err);
-    res.status(500).json({ message: "Error creating attendance record" });
-  }
+  const newRecord = await AttendanceModel.create(req.body);
+  res.status(201).json(newRecord);
 });
 
-// ---------- SEED ADMIN USER ----------
-async function seedInitialAdmin() {
-  const existingAdmin = await UserModel.findOne({ role: "ADMIN" });
-  if (existingAdmin) {
-    console.log("Admin already exists:", existingAdmin.email);
-    return;
-  }
-
-  const admin = await UserModel.create({
-    id: "admin",
-    name: "Hostel Admin",
-    email: "admin@hostel.com",
-    role: "ADMIN",
-    gender: "",
-    assignedRoomId: null,
-    assignedBedId: null,
-    avatarUrl: "",
-    tags: [],
-  });
-
-  console.log("Seeded default admin:", admin.email);
-}
-
-// ---------- START SERVER ----------
-
-const PORT = process.env.PORT || 5000;
-const DEFAULT_ADMIN_ID = process.env.DEFAULT_ADMIN_ID || "admin";
-const DEFAULT_ADMIN_EMAIL = process.env.DEFAULT_ADMIN_EMAIL || "admin@hostel.com";
-
-// Create a default admin if none exists
+// ---------- SEED DEFAULT ADMIN ----------
 async function ensureDefaultAdmin() {
-  try {
-    const existingAdmin = await UserModel.findOne({ role: "ADMIN" });
-
-    if (existingAdmin) {
-      console.log(`✅ Admin already exists: ${existingAdmin.email}`);
-      return;
-    }
-
-    const admin = await UserModel.create({
-      id: DEFAULT_ADMIN_ID,
+  const admin = await UserModel.findOne({ role: "ADMIN" });
+  if (!admin) {
+    await UserModel.create({
+      id: "admin",
       name: "Hostel Admin",
-      email: DEFAULT_ADMIN_EMAIL,
+      email: "admin@hostel.com",
       role: "ADMIN",
-      gender: "",
-      assignedRoomId: null,
-      assignedBedId: null,
-      avatarUrl: "",
-      tags: [],
     });
-
-    console.log("✅ Default admin created:", admin.email);
-  } catch (err) {
-    console.error("❌ Error ensuring default admin:", err);
+    console.log("Default admin created");
   }
 }
 
 await connectDB();
 await ensureDefaultAdmin();
 
-app.listen(PORT, () => {
-  console.log(`Backend API running on port ${PORT}`);
-});
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
