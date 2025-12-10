@@ -3,11 +3,11 @@ import mongoose from "mongoose";
 
 const GatePassSchema = new mongoose.Schema(
   {
-    id: { type: String, required: true, unique: true }, // gp_...
+    id: { type: String, required: true, unique: true }, // "gp_..."
     studentId: { type: String, required: true },
     studentName: { type: String, required: true },
 
-    departureDate: { type: String, required: true }, // keep as string like frontend
+    departureDate: { type: String, required: true },
     returnDate: { type: String, required: true },
     reason: { type: String, required: true },
 
@@ -19,9 +19,8 @@ const GatePassSchema = new mongoose.Schema(
 
     timestamp: { type: Number, required: true },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
 export const GatePassModel = mongoose.model("GatePass", GatePassSchema);
+export default GatePassModel;
