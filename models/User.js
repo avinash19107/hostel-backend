@@ -3,7 +3,8 @@ import mongoose from "mongoose";
 
 const UserSchema = new mongoose.Schema(
   {
-    id: { type: String, required: true, unique: true },  // "student1", "admin"
+    // College / system ID (eg: student1, admin1)
+    id: { type: String, required: true, unique: true },
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
 
@@ -13,7 +14,11 @@ const UserSchema = new mongoose.Schema(
       required: true,
     },
 
-    gender: { type: String, default: "" }, // "Male", "Female", etc.
+    gender: {
+      type: String,
+      enum: ["Male", "Female", ""],
+      default: "",
+    },
 
     assignedRoomId: { type: String, default: null },
     assignedBedId: { type: String, default: null },
@@ -21,10 +26,8 @@ const UserSchema = new mongoose.Schema(
     avatarUrl: { type: String, default: "" },
     tags: { type: [String], default: [] },
   },
-  {
-    timestamps: true,
-    strict: false,
-  }
+  { timestamps: true }
 );
 
 export const UserModel = mongoose.model("User", UserSchema);
+export default UserModel;
